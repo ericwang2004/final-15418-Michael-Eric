@@ -1,6 +1,6 @@
-APP_NAME=logic
+APP_NAME=graph
 
-OBJS=logic.o
+OBJS=graph.o
 
 CXX = g++
 CXXFLAGS = -Wall -O3 -std=c++17 -m64 -I. -fopenmp -Wno-unknown-pragmas
