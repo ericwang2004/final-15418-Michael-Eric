@@ -42,3 +42,6 @@
 
 # sftp
 *.json
+
+# test cases
+*.txt

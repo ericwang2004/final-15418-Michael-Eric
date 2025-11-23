@@ -1,9 +1,10 @@
 APP_NAME=graph
 
-OBJS=graph.o
+SRCS = graph.cpp
+OBJS = $(SRCS:.cpp=.o)
 
 CXX = g++
-CXXFLAGS = -Wall -O3 -std=c++17 -m64 -I. -fopenmp -Wno-unknown-pragmas
+CXXFLAGS = -Wall -O3 -std=c++17 -m64 -I. -fopenmp -Wno-unknown-pragmas -Wno-maybe-uninitialized
 
 all: $(APP_NAME)
 
