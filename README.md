@@ -1,3 +1,17 @@
+# 15-418 Milestone Report
+
+Eric Wang · Michael Zhou  
+November 2025
+
+## Progress
+So far, we are on schedule with implementing the sequence operations and star partition. More specifically, we have implemented `filter` on sequences achieving reasonable parallel speedup as well as `map`, which is fairly standard. To test star partition, we have written `countComponents`, which outputs the number of connected components of an undirected graph. We have also written testing code in Python for generating test cases. 
+
+Our main concern at this moment is achieving parallel speedup in \texttt{countComponents}. The problem with our current implementation of star partition is that we assume the vertices of the graph are labeled 0, \ldots, n-1. This allows us to bypass having to use complicated data structures such as dictionaries that would require synchronization and exacerbate issues of concurrency. However, it turns out that this invariant is rather difficult to maintain without requiring a certain minimum amount of sequential code. 
+
+Although we are working on performance debugging, we postulate that star partition based algorithms may be more sequential than we first thought, and our parallel speedup may even be theoretically bottle-necked to some substantial degree. Since Borůvka's algorithm is an even more complicated star partition based algorithm, we are considering holding off on implementing that in favor of other MST algorithms (such as Prim's and Kruskal's) that may be more amenable to parallelism. For the final report, it looks like we definitely will not be meeting our 100%+ goals of implementing these functions in CUDA. It may even be that we will not end up implementing Borůvka's algorithm (in place of which, other MST algorithms) in light of discovering that star partition is actually quite difficult to parallelize. 
+
+At the poster session, our plans are unchanged. We still plan to exhibit speedup graphs for the various functions in the sequence interface as well as `countComponents` and any MST algorithms we end up implementing. 
+
 # 15-418 Proposal: Star Contraction
 
 Eric Wang · Michael Zhou  
