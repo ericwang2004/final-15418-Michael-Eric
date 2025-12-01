@@ -191,6 +191,33 @@ vector<pair<int, int>> quotient(vector<pair<int, int>> &graph, const vector<int>
     return removeDuplicates(graph);
 }
 
+// (vertex1, (vertex2, weight))
+vector<pair<int, int>> vertexBridges (const vector<pair<int, pair<int, int>>> &graph, int &num_verts){
+    vector<pair<int, int>> result(num_verts);
+
+    #pragma omp parallel for
+    for (int i = 0; i < num_verts; i++) {
+        result[i] = {i, std::numeric_limits<int>::max()};
+    }
+
+    #pragma omp parallel for
+    for (int v=0; v < num_verts; v++){
+        pair<int,int> min = {v, std::numeric_limits<int>::max()};
+        for (size_t e=0; e<graph.size(); e++){
+            if (graph[e].first == v){
+                if (min.second > graph[e].second.second){
+                    min.second = graph[e].second.second;
+                    min.first = graph[e].second.first;
+                }
+            }
+            result[v] = min;
+        }
+    }
+    return result;
+}
+
+// void bridgeStarPartition;
+
 int countComponents(vector<pair<int, int>> &graph, int verts) {
     // cout << "\nreached loop again with " << verts << "vertices \n";
     // for (size_t i = 1; i < graph.size(); i++) {
