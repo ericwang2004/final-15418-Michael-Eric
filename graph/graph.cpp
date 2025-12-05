@@ -12,6 +12,30 @@
 
 using namespace std;
 
+struct triple {
+    size_t fst;
+    size_t snd;
+    int data;
+    bool operator==(const triple& other) const {
+        return fst == other.fst &&
+               snd == other.snd &&
+               data == other.data;
+    }
+    bool operator!=(const triple& other) const {
+        return !(*this == other);
+    }
+};
+
+bool cmp(const triple& a, const triple& b) {
+    if (a.fst != b.fst) {
+        return a.fst < b.fst;
+    }
+    if (a.snd != b.snd) {
+        return a.snd < b.snd;
+    }
+    return a.data < b.data;
+}
+
 template <typename T, typename F>
 void map_inplace(vector<T> &data, const F &f) {
     #pragma omp parallel for
@@ -104,22 +128,22 @@ void flipCoins(vector<bool> &flips, double prob) {
     }
 }
 
-void initializeMapping(vector<int> &mapping) {
+void initializeMapping(vector<size_t> &mapping) {
     #pragma omp parallel for
     for (size_t i = 0; i < mapping.size(); i++) {
         mapping[i] = i;
     }
 }
 
-void starPartition(const vector<pair<int, int>> &graph, const vector<bool> &flips, vector<int> &mapping) {
+void starPartition(const vector<triple> &graph, const vector<bool> &flips, vector<size_t> &mapping) {
     // assume mapping is initialized to {0, 1, ..., n - 1}
     // i.e. each vertex initially maps to itself
     #pragma omp parallel for
     for (size_t e = 0; e < graph.size(); e++) {
         // loop through the edges of the graph
         // int e = myvector[e];
-        int u = graph[e].first;
-        int v = graph[e].second;
+        size_t u = graph[e].fst;
+        size_t v = graph[e].snd;
         if (!flips[u] && flips[v]) {
             // u |-> v if u flipped tails, v flipped heads, and they're adjacent
             // ties are broken arbitrarily
@@ -128,22 +152,22 @@ void starPartition(const vector<pair<int, int>> &graph, const vector<bool> &flip
     }
 }
 
-int countCenters(const vector<int> &mapping) {
-    int total = 0;
+size_t countCenters(const vector<size_t> &mapping) {
+    size_t total = 0;
     #pragma omp parallel for reduction(+:total)
     for (size_t i = 0; i < mapping.size(); i++) {
-        if (mapping[i] == (int)i) {
+        if (mapping[i] == i) {
             total++;
         }
     }
     return total;
 }
 
-vector<int> changeLabels(const vector<int> &mapping, int &max_label) {
-    vector<int> res(mapping.size());
-    int count = 0;
+vector<size_t> changeLabels(const vector<size_t> &mapping, size_t &max_label) {
+    vector<size_t> res(mapping.size());
+    size_t count = 0;
     for (size_t i = 0; i < mapping.size(); i++) {
-        if (mapping[i] == (int)i) {
+        if (mapping[i] == i) {
             res[i] = count;
             count++;
         }
@@ -155,70 +179,43 @@ vector<int> changeLabels(const vector<int> &mapping, int &max_label) {
     return res;
 }
 
-vector<pair<int, int>> removeDuplicates(vector<pair<int, int>> &graph) {
+vector<triple> removeDuplicates(vector<triple> &graph) {
     size_t N = graph.size();
-    auto cmp = [&](const pair<int, int> &e1, const pair<int, int> &e2) {
-        if (e1.first < e2.first) {
-            return true;
-        }
-        if (e1.first > e2.first) {
-            return false;
-        }
-        return e1.second < e2.second;
-    };
+    // auto cmp = [&](const triple &e1, const triple &e2) {
+    //     if (e1.fst < e2.fst) {
+    //         return true;
+    //     }
+    //     if (e1.fst > e2.fst) {
+    //         return false;
+    //     }
+    //     return e1.snd < e2.snd;
+    // };
     sort(graph.begin(), graph.end(), cmp);
     // now the edges are sorted and we wish to remove duplicates and self-edges
     vector<int> flags(N);
-    if (graph[0].first != graph[0].second) {
+    if (graph[0].fst != graph[0].snd) {
         flags[0] = 1;
     }
     #pragma omp parallel for
     for (size_t i = 1; i < N; i++) {
-        pair<int, int> e = graph[i];
-        if (e.first != e.second && e != graph[i - 1]) {
+        triple e = graph[i];
+        if (e.fst != e.snd && !(e.fst == graph[i - 1].fst && e.snd == graph[i - 1].snd)) {
             flags[i] = 1;
         }
     }
     return generalizedFilter(graph, flags);
 }
 
-vector<pair<int, int>> quotient(vector<pair<int, int>> &graph, const vector<int> &mapping, int &new_num_verts) {
-    vector<int> newLabels = changeLabels(mapping, new_num_verts);
-    auto f = [&](const pair<int, int> &e) {
-        return pair<int, int>(newLabels[e.first], newLabels[e.second]);
+vector<triple> quotient(vector<triple> &graph, const vector<size_t> &mapping, size_t &new_num_verts) {
+    vector<size_t> newLabels = changeLabels(mapping, new_num_verts);
+    auto f = [&](const triple &e) -> triple {
+        return triple { newLabels[e.fst], newLabels[e.snd], e.data };
     };
     map_inplace(graph, f);
     return removeDuplicates(graph);
 }
 
-// (vertex1, (vertex2, weight))
-vector<pair<int, int>> vertexBridges (const vector<pair<int, pair<int, int>>> &graph, int &num_verts){
-    vector<pair<int, int>> result(num_verts);
-
-    #pragma omp parallel for
-    for (int i = 0; i < num_verts; i++) {
-        result[i] = {i, std::numeric_limits<int>::max()};
-    }
-
-    #pragma omp parallel for
-    for (int v=0; v < num_verts; v++){
-        pair<int,int> min = {v, std::numeric_limits<int>::max()};
-        for (size_t e=0; e<graph.size(); e++){
-            if (graph[e].first == v){
-                if (min.second > graph[e].second.second){
-                    min.second = graph[e].second.second;
-                    min.first = graph[e].second.first;
-                }
-            }
-            result[v] = min;
-        }
-    }
-    return result;
-}
-
-// void bridgeStarPartition;
-
-int countComponents(vector<pair<int, int>> &graph, int verts) {
+size_t countComponents(vector<triple> &graph, size_t verts) {
     // cout << "\nreached loop again with " << verts << "vertices \n";
     // for (size_t i = 1; i < graph.size(); i++) {
     //     cout << "edge" << graph[i].first << "," << graph[i].second << "\n";
@@ -226,15 +223,121 @@ int countComponents(vector<pair<int, int>> &graph, int verts) {
     if (graph.size() == 0) {
         return verts;
     }
-    vector<int> mapping(verts);
+    vector<size_t> mapping(verts);
     vector<bool> flips(verts);
     initializeMapping(mapping);
     flipCoins(flips, 0.5);
     starPartition(graph, flips, mapping);
-    int new_num_verts;
-    vector<pair<int, int>> new_graph = quotient(graph, mapping, new_num_verts);
+    size_t new_num_verts;
+    vector<triple> new_graph = quotient(graph, mapping, new_num_verts);
     return countComponents(new_graph, new_num_verts);
 }
+
+// (vertex1, vertex2, weight)
+vector<triple> vertexBridges (const vector<triple> &graph, size_t &num_verts){
+    vector<triple> result(num_verts);
+
+    # pragma omp parallel for
+    for (size_t i = 0; i < num_verts; i++){
+        result[i] = {i, i, numeric_limits<int>::max()};
+    }
+
+    #pragma omp parallel for
+    for (size_t v = 0; v < num_verts; v++){
+        size_t min_vx = v;
+        int min_weight = numeric_limits<int>::max();
+        for (auto &e : graph){
+            if (e.fst == v){
+                if (min_weight > e.data){
+                    min_weight = e.data;
+                    min_vx = e.snd;
+                }
+            }
+            result[v].snd = min_vx;
+            result[v].data = min_weight;
+        }
+    }
+    // ! important !
+    // result[u] = (u, v, w) means
+    // vertex u's min weight edge is (u, v) with weight w
+    return result;
+}
+
+void bridgeStarPartition(const vector<triple> &bridges, const vector<bool> &flips, vector<size_t> &mapping) {
+    // assume mapping is initialized to {0, 1, ..., n - 1}
+    // i.e. each vertex initially maps to itself
+    // note that this function only cares about the bridges, not the entire graph
+    #pragma omp parallel for
+    for (size_t e = 0; e < bridges.size(); e++) {
+        // bridges[e] = (u, v, weight)
+        const size_t u = bridges[e].fst;
+        const size_t v = bridges[e].snd;
+        if (!flips[u] && flips[v]) {
+            mapping[u] = v;
+        }
+        if (!flips[v] && flips[u]) {
+            mapping[v] = u;
+        }
+    }
+
+    // size_t total = 0;
+    // #pragma omp parallel for reduction(+:total)
+    // for (size_t e = 0; e < bridges.size(); e++) {
+    //     const auto& [u, v, weight] = bridges[e];
+    //     if ((mapping[u] == v || mapping[v] == u) && (u < v || (v < u && bridges[v].snd != u))) {
+    //         total += weight;
+    //     }
+    // }
+    // return total;
+}
+
+/* return the sum of the weights of the contracted edges */
+size_t sumContracted(const vector<triple> &bridges, const vector<size_t> &mapping) {
+    size_t total = 0;
+    #pragma omp parallel for reduction(+:total)
+    for (size_t u = 0; u < mapping.size(); u++) {
+        size_t v = mapping[u];
+        if (u != v) {
+            if (bridges[u].snd == v) {
+                total += bridges[u].data;
+            } else if (bridges[v].snd == u) {
+                total += bridges[v].data;
+            }
+        }
+    }
+    return total;
+}
+
+size_t boruvka(vector<triple> &graph, size_t &n_verts) {
+    if (graph.size() == 0) {
+        return 0;
+    }
+    vector<size_t> mapping(n_verts);
+    initializeMapping(mapping);
+    vector<bool> flips(n_verts);
+    flipCoins(flips, 0.5);
+    vector<triple> bridges = vertexBridges(graph, n_verts);
+    bridgeStarPartition(bridges, flips, mapping);
+    size_t contractedWeights = sumContracted(bridges, mapping);
+    size_t new_n_verts;
+    vector<triple> newGraph = quotient(graph, mapping, new_n_verts);
+    return contractedWeights + boruvka(newGraph, new_n_verts);
+}
+
+/* (vertex1, (vertex2, weight)) */
+vector<triple> readGraph(const string &input_filename, size_t &n, size_t &m) {
+    ifstream fin(input_filename);
+    size_t n_verts, n_edges;
+    fin >> n_verts >> n_edges;
+    vector<triple> graph(2 * n_edges);
+    for (auto &edge : graph) {
+        fin >> edge.fst >> edge.snd >> edge.data;
+    }
+    n = n_verts;
+    m = n_edges;
+    return graph;
+}
+
 
 int main(int argc, char *argv[]) {
     string input_filename;
@@ -261,23 +364,52 @@ int main(int argc, char *argv[]) {
     cout << "Number of threads: " << num_threads << '\n';
     cout << "Input file: " << input_filename << '\n';
 
-    ifstream fin(input_filename);
+    // ifstream fin(input_filename);
     size_t n_verts, n_edges;
-    fin >> n_verts >> n_edges;
-    vector<pair<int, int>> graph(2 * n_edges);
-    for (auto &edge : graph) {
-        fin >> edge.first >> edge.second;
-    }
+    // fin >> n_verts >> n_edges;
+    // vector<pair<int, int>> graph(2 * n_edges);
+    // for (auto &edge : graph) {
+    //     fin >> edge.first >> edge.second;
+    // }
+
+    vector<triple> graph = readGraph(input_filename, n_verts, n_edges);
 
     omp_set_num_threads(num_threads);
 
-    vector<int> mapping(n_verts);
-    vector<bool> flips(n_verts);
+    // vector<size_t> mapping(n_verts);
+    // initializeMapping(mapping);
+    // vector<bool> flips(n_verts);
+    // flipCoins(flips, 0.5);
+    // cout << "Coin flips: ";
+    // for (bool b : flips) {
+    //     cout << b << " ";
+    // }
 
     const auto compute_start = chrono::steady_clock::now();
+    size_t mst_weight = boruvka(graph, n_verts);
+    cout << "weight of mst: " << mst_weight << "\n";
 
-    int count = countComponents(graph, n_verts);
-    cout << "\nnumber of components: " << count << "\n";
+    // vector<triple> bridges = vertexBridges(graph, n_verts);
+    // cout << "\nbridges: ";
+    // for (triple &e : bridges) {
+    //     cout << "(" << e.fst << ", " << e.snd << ", " << e.data << ") ";
+    // }
+    // bridgeStarPartition(bridges, flips, mapping);
+    // size_t contractedWeights = sumContracted(bridges, mapping);
+    // cout << "\nmapping: ";
+    // for (size_t i = 0; i < mapping.size(); i++) {
+    //     cout << "(" << i << ", " << mapping[i] << ") ";
+    // }
+    // size_t new_n_verts;
+    // vector<triple> newGraph = quotient(graph, mapping, new_n_verts);
+    // cout << "\nnew graph: ";
+    // for (triple &e : newGraph) {
+    //     cout << "(" << e.fst << ", " << e.snd << ", " << e.data << ") ";
+    // }
+    // cout << "\nsum of contracted weights: " << contractedWeights << "\n";
+
+    // int count = countComponents(graph, n_verts);
+    // cout << "\nnumber of components: " << count << "\n";
 
     // initializeMapping(mapping);
     // flipCoins(flips, 0.5);
