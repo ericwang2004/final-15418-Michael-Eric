@@ -12,6 +12,11 @@
 
 using namespace std;
 
+/**
+ * Triple is the data structure for triples
+ * defined == and != for eqaulity/inequality between triples
+ * used for data like (vertex1 : size_t, vertex2 : size_t, weight : int)
+ */
 struct triple {
     size_t fst;
     size_t snd;
@@ -26,6 +31,10 @@ struct triple {
     }
 };
 
+/**
+ * Lexicographical compare function for triples - determining inequality using
+ * elements from left to right
+ */
 bool cmp(const triple& a, const triple& b) {
     if (a.fst != b.fst) {
         return a.fst < b.fst;
@@ -36,6 +45,9 @@ bool cmp(const triple& a, const triple& b) {
     return a.data < b.data;
 }
 
+/**
+ * maps a vector with entries of type T in place
+ */
 template <typename T, typename F>
 void map_inplace(vector<T> &data, const F &f) {
     #pragma omp parallel for
@@ -44,6 +56,10 @@ void map_inplace(vector<T> &data, const F &f) {
     }
 }
 
+/**
+ * input: integer vectors data and sums
+ * computes prefix sum of data and stores in sums
+ */
 void prefix_sum(const vector<int>& data, vector<int>& sums) {
     size_t n = data.size();
 
@@ -57,6 +73,12 @@ void prefix_sum(const vector<int>& data, vector<int>& sums) {
     }
 }
 
+/**
+ * input: data:vector of type T, flags: int vector, psum : int vector, out: vector of type T
+ * prefix sum of flags (stored in psum), is index of next available location in out to store a value
+ * e.g. flags = [0,1,1,0,1] has psum = [0,0,1,2,2] so store entry 1 at 0, entry 2 at 3 and entry 4 at 2
+ * returns length of output vector (number of elements left after filtering)
+ */
 template <typename T>
 size_t generalizedFilter(const vector<T> &data, const vector<int> &flags, vector<int> &psum, vector<T> &out) {
     size_t N = data.size();
@@ -69,6 +91,10 @@ size_t generalizedFilter(const vector<T> &data, const vector<int> &flags, vector
     return psum[N];
 }
 
+/**
+ * input: data:vector of type T, flags: int vector, psum : int vector
+ * returns out = vector of type T, which is the result of filtering
+ */
 template <typename T>
 vector<T> generalizedFilter(const vector<T> &data, const vector<int> &flags) {
     size_t N = data.size();
@@ -79,6 +105,11 @@ vector<T> generalizedFilter(const vector<T> &data, const vector<int> &flags) {
     return out;
 }
 
+/**
+ * input: data:vector of type T, flags: int vector, psum : int vector, out : vector of type T, pred : a predicate function
+ * Filters the data vector using pred and stores result in out
+ * returns the length of out (the filtered vector)
+ */
 template <typename T, typename tau>
 size_t filter(const vector<T> &data, vector<int> &flags, vector<int> &psum, vector<T> &out, tau &pred) {
     size_t total = 0;
@@ -101,6 +132,11 @@ size_t filter(const vector<T> &data, vector<int> &flags, vector<int> &psum, vect
     return total;
 }
 
+/**
+ * input: data:vector of type T, flags: int vector, psum : int vector, out : vector of type T, pred : a predicate function
+ * Filters the data vector using pred
+ * returns filtered data in a vector of type T
+ */
 template <typename T, typename tau>
 vector<T> filter(const vector<T> &data, tau &pred) {
     size_t N = data.size();
@@ -112,6 +148,10 @@ vector<T> filter(const vector<T> &data, tau &pred) {
     return out;
 }
 
+/**
+ * inputs: flips:bool vector, prob:double between [0,1]
+ * stores result of coin flips with probability prob in flips
+ */
 void flipCoins(vector<bool> &flips, double prob) {
     #pragma omp parallel
     {
@@ -128,6 +168,12 @@ void flipCoins(vector<bool> &flips, double prob) {
     }
 }
 
+/**
+ * input: mapping:size_t vector
+ * the mapping vector shows where each vertex should be mapped
+ * For example mapping[i] = j means that vertex i should be mapped to vertex j
+ * InitializeMapping maps every vertex to itself - representing that no contractions have occurred yet
+ */
 void initializeMapping(vector<size_t> &mapping) {
     #pragma omp parallel for
     for (size_t i = 0; i < mapping.size(); i++) {
@@ -135,6 +181,12 @@ void initializeMapping(vector<size_t> &mapping) {
     }
 }
 
+/**
+ * inputs: graph:vector of type triple (edge list), flips:vector of bools (vector of coin flips for each vertex), 
+ * mapping:vector of size_t storing where each vector should contract to
+ * If a vertex is heads, it is a "center" of a star, and if tails, it is a potential satellite vertex
+ * updates mapping vector based on the coin flips for each vertex
+ */
 void starPartition(const vector<triple> &graph, const vector<bool> &flips, vector<size_t> &mapping) {
     // assume mapping is initialized to {0, 1, ..., n - 1}
     // i.e. each vertex initially maps to itself
@@ -152,6 +204,10 @@ void starPartition(const vector<triple> &graph, const vector<bool> &flips, vecto
     }
 }
 
+/**
+ * input: mapping:vector of size_t
+ * output: size_t value of the number of centers in the mapping
+ */
 size_t countCenters(const vector<size_t> &mapping) {
     size_t total = 0;
     #pragma omp parallel for reduction(+:total)
@@ -163,6 +219,12 @@ size_t countCenters(const vector<size_t> &mapping) {
     return total;
 }
 
+/**
+ * inputs: mapping:vector of size_t, max_label:size_t
+ * max_label stores the largest label number (or equivalently the number of unique 
+ * label numbers since the label numbers are consecutive) after applying the mapping
+ * outputs: size_t vector containing the update vertex labels after using the mapping
+ */
 vector<size_t> changeLabels(const vector<size_t> &mapping, size_t &max_label) {
     vector<size_t> res(mapping.size());
     size_t count = 0;
@@ -179,6 +241,11 @@ vector<size_t> changeLabels(const vector<size_t> &mapping, size_t &max_label) {
     return res;
 }
 
+/**
+ * inputs: graph:vector of triples (edge list representation)
+ * If there are duplicate edges e.g. (1,2,w), (1,2,w) then only keep one of those edges
+ * returns: graph without duplicates
+ */
 vector<triple> removeDuplicates(vector<triple> &graph) {
     size_t N = graph.size();
     // auto cmp = [&](const triple &e1, const triple &e2) {
@@ -206,6 +273,11 @@ vector<triple> removeDuplicates(vector<triple> &graph) {
     return generalizedFilter(graph, flags);
 }
 
+/**
+ * inputs: graph:vector of triple, mapping:vector of size_t, new_num_verts:size_t
+ * new_num_verts is updated to how many vertices there are after applying the mapping to the graph
+ * output: vector of triple of the new edge list representing the new contracted graph
+ */
 vector<triple> quotient(vector<triple> &graph, const vector<size_t> &mapping, size_t &new_num_verts) {
     vector<size_t> newLabels = changeLabels(mapping, new_num_verts);
     auto f = [&](const triple &e) -> triple {
@@ -215,6 +287,11 @@ vector<triple> quotient(vector<triple> &graph, const vector<size_t> &mapping, si
     return removeDuplicates(graph);
 }
 
+/**
+ * inputs: graph:vector of triple, verts:size_t
+ * graph is an edge list, and verts is the number of vertices
+ * output: size_t value of how many connected components there are
+ */
 size_t countComponents(vector<triple> &graph, size_t verts) {
     // cout << "\nreached loop again with " << verts << "vertices \n";
     // for (size_t i = 1; i < graph.size(); i++) {
@@ -234,6 +311,12 @@ size_t countComponents(vector<triple> &graph, size_t verts) {
 }
 
 // (vertex1, vertex2, weight)
+/**
+ * inputs: graph:vector of triple, num_verts:size_t
+ * Find all the vertex bridges (lightest edge out of each vertex)
+ * result is a vector of triple where result[v] should be lightest edge out of vertex v
+ * outputs: result:vector of triple representing edge list of vertex bridges
+ */
 vector<triple> vertexBridges (const vector<triple> &graph, size_t &num_verts){
     vector<triple> result(num_verts);
 
@@ -263,6 +346,12 @@ vector<triple> vertexBridges (const vector<triple> &graph, size_t &num_verts){
     return result;
 }
 
+/**
+ * inputs: bridges:vector of triple, flips:vector of bool, mapping:size_t vector
+ * Updates mapping by going though the lightest edge out of each vertex and 
+ * using coin flips to determine if the vertex is a satellite and if it should 
+ * be contracted to a neighbour (which must be a center)
+ */
 void bridgeStarPartition(const vector<triple> &bridges, const vector<bool> &flips, vector<size_t> &mapping) {
     // assume mapping is initialized to {0, 1, ..., n - 1}
     // i.e. each vertex initially maps to itself
@@ -291,7 +380,10 @@ void bridgeStarPartition(const vector<triple> &bridges, const vector<bool> &flip
     // return total;
 }
 
-/* return the sum of the weights of the contracted edges */
+/**
+ * inputs: bridges:vector of triple, mapping:size_t vector
+ * output: size_t value of the sum of weights of the contracted edges
+ */
 size_t sumContracted(const vector<triple> &bridges, const vector<size_t> &mapping) {
     size_t total = 0;
     #pragma omp parallel for reduction(+:total)
@@ -308,6 +400,11 @@ size_t sumContracted(const vector<triple> &bridges, const vector<size_t> &mappin
     return total;
 }
 
+/**
+ * Boruvka's algorithm
+ * inputs: graph:vector of triple, n_verts:triple
+ * output: size_t value representing the weight of the MST
+ */
 size_t boruvka(vector<triple> &graph, size_t &n_verts) {
     if (graph.size() == 0) {
         return 0;
@@ -325,6 +422,16 @@ size_t boruvka(vector<triple> &graph, size_t &n_verts) {
 }
 
 /* (vertex1, (vertex2, weight)) */
+/**
+ * inputs: input_filename:string, n:size_t, m_size_t
+ * reads a graph from a text file where it is formatted as
+ * n_vertices n_edges
+ * vertex1 vertex1' weight1
+ * vertex2 vertex2' weight2
+ * ...
+ * Note that graphs should be undirected so if edge (v1,v2) present so should (v2,v1)
+ * outputs: vector of triple representing an edge list corresponding to input text file
+ */
 vector<triple> readGraph(const string &input_filename, size_t &n, size_t &m) {
     ifstream fin(input_filename);
     size_t n_verts, n_edges;
@@ -338,7 +445,10 @@ vector<triple> readGraph(const string &input_filename, size_t &n, size_t &m) {
     return graph;
 }
 
-
+/**
+ * after running make, test by using
+ * ./graph -f <filename> -n <number threads>
+ */
 int main(int argc, char *argv[]) {
     string input_filename;
     int num_threads = 0;
