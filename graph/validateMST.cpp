@@ -31,6 +31,10 @@ struct triple {
     }
 };
 
+/**
+ * This is for comparing edges of type triple (v1,v2,w)
+ * returns if weight of a triple is larger than the other triple
+ */
 class compare_weight{
     public:
     bool operator()(triple x, triple y){
@@ -41,6 +45,16 @@ class compare_weight{
     }
 };
 
+/**
+ * inputs: input_filename:string, n:size_t, m_size_t
+ * reads a graph from a text file where it is formatted as
+ * n_vertices n_edges
+ * vertex1 vertex1' weight1
+ * vertex2 vertex2' weight2
+ * ...
+ * Note that graphs should be undirected so if edge (v1,v2) present so should (v2,v1)
+ * outputs: vector of triple representing an edge list corresponding to input text file
+ */
 vector<triple> readGraph(const string &input_filename, size_t &n, size_t &m, bool hasweights) {
     ifstream fin(input_filename);
     size_t n_verts, n_edges;
@@ -62,7 +76,11 @@ vector<triple> readGraph(const string &input_filename, size_t &n, size_t &m, boo
     return graph;
 }
 
-// using https://www.cs.cmu.edu/afs/cs/academic/class/15210-f12/www/recis/rec10.pdf
+/**
+ * inputs: graph:triple, n_verties:size_t
+ * runs prim's algorithm based on https://www.cs.cmu.edu/afs/cs/academic/class/15210-f12/www/recis/rec10.pdf
+ * output: returns size_t of the weight of the MST
+ */
 size_t prim_MST(vector<triple> &graph, size_t &n_vertices){
     vector<bool> seen(n_vertices, false);
     int graph_matrix[n_vertices][n_vertices];
@@ -146,7 +164,6 @@ int main(int argc, char *argv[]) {
     // for (auto &edge : graph) {
     //     graph_matrix[edge.fst][edge.snd] = edge.data;
     // }
-
 
     const auto compute_start = chrono::steady_clock::now();
     size_t mst_weight = prim_MST(graph, n_verts);
