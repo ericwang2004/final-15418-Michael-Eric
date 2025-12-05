@@ -432,13 +432,21 @@ size_t boruvka(vector<triple> &graph, size_t &n_verts) {
  * Note that graphs should be undirected so if edge (v1,v2) present so should (v2,v1)
  * outputs: vector of triple representing an edge list corresponding to input text file
  */
-vector<triple> readGraph(const string &input_filename, size_t &n, size_t &m) {
+vector<triple> readGraph(const string &input_filename, size_t &n, size_t &m, bool hasweights) {
     ifstream fin(input_filename);
     size_t n_verts, n_edges;
     fin >> n_verts >> n_edges;
     vector<triple> graph(2 * n_edges);
-    for (auto &edge : graph) {
-        fin >> edge.fst >> edge.snd >> edge.data;
+    if (hasweights){
+        for (auto &edge : graph) {
+            fin >> edge.fst >> edge.snd >> edge.data;
+        }
+    } else {
+        for (auto &edge : graph) {
+            fin >> edge.fst >> edge.snd;
+            // default weight is 1
+            edge.data = 1;
+        }
     }
     n = n_verts;
     m = n_edges;
@@ -447,13 +455,17 @@ vector<triple> readGraph(const string &input_filename, size_t &n, size_t &m) {
 
 /**
  * after running make, test by using
- * ./graph -f <filename> -n <number threads>
+ * ./graph -f <filename> -n <number threads> -m <CC or MST>
+ * CC is connected components
+ * add flag -w if graph has weights, otherwise default weight is 1 for each edge
  */
 int main(int argc, char *argv[]) {
     string input_filename;
     int num_threads = 0;
     int opt;
-    while ((opt = getopt(argc, argv, "f:n:")) != -1) {
+    bool hasweights = false;
+    string run_mode;
+    while ((opt = getopt(argc, argv, "f:n:m:w")) != -1) {
         switch (opt) {
             case 'f':
                 input_filename = optarg;
@@ -461,18 +473,25 @@ int main(int argc, char *argv[]) {
             case 'n':
                 num_threads = atoi(optarg);
                 break;
+            case 'm':
+                run_mode = optarg;
+                break;
+            case 'w':
+                hasweights = true;
+                break;
             default:
-                cerr << "blah blah blah usage\n";
+                cerr << "blah blah blah usage1\n";
                 exit(EXIT_FAILURE);
         }
     }
     if (empty(input_filename) || num_threads <= 0) {
-        cerr << "blah blah blah usage\n";
+        cerr << "blah blah blah usage2\n";
         exit(EXIT_FAILURE);
     }
 
     cout << "Number of threads: " << num_threads << '\n';
     cout << "Input file: " << input_filename << '\n';
+    cout << "test to run: " << run_mode << '\n';
 
     // ifstream fin(input_filename);
     size_t n_verts, n_edges;
@@ -482,7 +501,7 @@ int main(int argc, char *argv[]) {
     //     fin >> edge.first >> edge.second;
     // }
 
-    vector<triple> graph = readGraph(input_filename, n_verts, n_edges);
+    vector<triple> graph = readGraph(input_filename, n_verts, n_edges, hasweights);
 
     omp_set_num_threads(num_threads);
 
@@ -496,8 +515,16 @@ int main(int argc, char *argv[]) {
     // }
 
     const auto compute_start = chrono::steady_clock::now();
-    size_t mst_weight = boruvka(graph, n_verts);
-    cout << "weight of mst: " << mst_weight << "\n";
+    if (run_mode == "MST"){
+        size_t mst_weight = boruvka(graph, n_verts);
+        cout << "weight of mst: " << mst_weight << "\n";
+    } else if (run_mode == "CC"){
+        size_t n_components = countComponents(graph, n_verts);
+        cout << "number of connected components: " << n_components << "\n";
+    } else {
+        cout << "run_mode must be CC (connected components) or MST (min spanning tree) \n";
+    }
+    
 
     // vector<triple> bridges = vertexBridges(graph, n_verts);
     // cout << "\nbridges: ";
