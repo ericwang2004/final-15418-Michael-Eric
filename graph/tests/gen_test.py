@@ -69,7 +69,7 @@ def random_connected_graph_with_weights(n_verts, prob):
                     pairs.append((j,i,w))
                     n_edges += 1
     random.shuffle(pairs)
-    with open(f"random_connected_weights_{n_verts}.txt", "w") as f:
+    with open(f"random{prob}_connected_weights_{n_verts}.txt", "w") as f:
         f.write(f"{n_verts} {n_edges}\n")
         for i, j, w in pairs:
             f.write(f"{i} {j} {w}\n")
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     n_verts = args.v
     prob = args.p
-    
+
     if args.t == "complete_no_weights":
         complete_graph_no_weights(n_verts)
         print(f"generated graph stored with name: k{n_verts}.txt")
@@ -102,6 +102,6 @@ if __name__ == "__main__":
         print(f"generated graph stored with name: random_weights_{n_verts}.txt")
     elif args.t == "random_connected_with_weights":
         random_connected_graph_with_weights(n_verts, prob)
-        print(f"generated graph stored with name: random_connected_weights_{n_verts}.txt")
+        print(f"generated graph stored with name: random{prob}_connected_weights_{n_verts}.txt")
     else:
         print("graph type must be one of: complete_no_weights, complete_weights, random_with_weights, random_connected_with_weights")
